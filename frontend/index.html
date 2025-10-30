@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Recommender</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+        .container {
+            max-width: 1200px;
+        }
+        .movie-card {
+            background-color: #2d2d2d;
+            border: none;
+            border-radius: 10px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            height: 100%;
+        }
+        .movie-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+        .search-container {
+            background-color: #2d2d2d;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 40px;
+            position: relative;
+        }
+        .form-control {
+            background-color: #1a1a1a;
+            border: 1px solid #404040;
+            color: #ffffff;
+            padding: 12px 20px;
+        }
+        .form-control::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+        .form-control:focus {
+            background-color: #1a1a1a;
+            border-color: #0d6efd;
+            color: #ffffff;
+            box-shadow: none;
+        }
+        .btn-primary {
+            padding: 12px 30px;
+            border-radius: 5px;
+        }
+        .loading {
+            display: none;
+            margin: 20px 0;
+        }
+        .movie-title {
+            color: #ffffff;
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            text-decoration: none;
+        }
+        .movie-title:hover {
+            color: #d40808;
+        }
+        .genre-badge {
+            background-color: #404040;
+            color: #ffffff;
+            padding: 5px 10px;
+            border-radius: 15px;
+            margin-right: 5px;
+            margin-bottom: 5px;
+            display: inline-block;
+            font-size: 0.8rem;
+        }
+        .watch-btn {
+            background-color: #d40808;
+            color: white;
+            text-decoration: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            display: inline-block;
+            margin-top: 10px;
+            transition: background-color 0.2s;
+        }
+        .watch-btn:hover {
+            background-color: #a50404;
+            color: white;
+        }
+        .page-title {
+            font-size: 2.5rem;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 30px;
+            color: #ffffff;
+        }
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            width: 100%;
+            background-color: #2d2d2d;
+            border: 1px solid #404040;
+            border-radius: 5px;
+            margin-top: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+        .dropdown-item {
+            color: #ffffff;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 1px solid #404040;
+        }
+        .dropdown-item:last-child {
+            border-bottom: none;
+        }
+        .dropdown-item:hover {
+            background-color: #404040;
+            color: #ffffff;
+        }
+        .highlight {
+            background-color: rgba(13, 110, 253, 0.3);
+            padding: 2px;
+            border-radius: 3px;
+        }
+        .no-results {
+            color: #999;
+            padding: 10px 20px;
+            text-align: center;
+        }
+        .search-wrapper {
+            position: relative;
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-5">
+        <h1 class="text-center mb-4 text-white">Movie Recommender</h1>
+        
+        <div class="search-container">
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <div class="search-wrapper">
+                        <div class="input-group">
+                            <input type="text" id="movieInput" class="form-control" placeholder="Enter a movie title..." autocomplete="off">
+                            <button class="btn btn-primary" onclick="getRecommendations()">
+                                <i class="fas fa-search"></i> Find Similar Movies
+                            </button>
+                        </div>
+                        <div id="movieSuggestions" class="dropdown-menu">
+                            <!-- Suggestions will appear here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center loading" id="loading">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+
+        <div id="results" class="row g-4">
+            <!-- Recommendations will be displayed here -->
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5001';
+
+        async function getRecommendations() {
+            const movieTitle = document.getElementById('movieInput').value.trim();
+            console.log('Searching for movie:', movieTitle);
+            
+            if (!movieTitle) {
+                alert('Please enter a movie title');
+                return;
+            }
+
+            showLoading(true);
+            showError(''); // Clear previous errors
+            
+            try {
+                const url = `${API_URL}/recommend?movie=${encodeURIComponent(movieTitle)}`;
+                console.log('Making request to:', url);
+                
+                const response = await fetch(url);
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('Response data:', data);
+                
+                if (data.error) {
+                    showErrorWithSuggestions(data);
+                } else {
+                    displayRecommendations(data);
+                }
+            } catch (error) {
+                console.error('Error details:', error);
+                if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                    showError('Cannot connect to the recommendation service. Make sure the Python API is running on port 5001.');
+                } else {
+                    showError(`Error: ${error.message}`);
+                }
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function displayRecommendations(data) {
+            const resultsDiv = document.getElementById('results');
+            
+            console.log('Displaying recommendations:', data);
+            
+            if (!data.recommendations || !Array.isArray(data.recommendations)) {
+                showError('Invalid response format from server');
+                return;
+            }
+
+            if (data.recommendations.length === 0) {
+                showError('No recommendations found for this movie');
+                return;
+            }
+
+            let html = `<h2>Recommendations for "${data.matched_movie || data.input_movie}"</h2>`;
+            
+            if (data.matched_movie && data.input_movie && data.input_movie.toLowerCase() !== data.matched_movie.toLowerCase()) {
+                html += `<p style="color: #ffd700;">✨ We matched your search "${data.input_movie}" to "${data.matched_movie}"</p>`;
+            }
+
+            data.recommendations.forEach((movie, index) => {
+                html += `
+                    <div class="movie-card">
+                        <h3>${index + 1}. ${movie.title}</h3>
+                        <p>⭐ Rating: ${movie.vote_average || 'N/A'}</p>
+                        <p>📅 Release Date: ${movie.release_date || 'N/A'}</p>
+                        <p>🎭 Genres: ${movie.genres || 'N/A'}</p>
+                    </div>
+                `;
+            });
+
+            resultsDiv.innerHTML = html;
+        }
+
+        function showErrorWithSuggestions(data) {
+            console.log('Showing error with suggestions:', data);
+            const resultsDiv = document.getElementById('results');
+            let html = `<div class="error">❌ ${data.error}</div>`;
+            
+            if (data.suggestions && data.suggestions.length > 0) {
+                html += `<h3>💡 Did you mean one of these?</h3>`;
+                html += `<div style="margin: 1rem 0;">`;
+                data.suggestions.forEach(suggestion => {
+                    html += `
+                        <button onclick="searchSuggestion('${suggestion.replace(/'/g, "\\'")}')">
+                            ${suggestion}
+                        </button>
+                    `;
+                });
+                html += `</div>`;
+            }
+            
+            resultsDiv.innerHTML = html;
+        }
+
+        function searchSuggestion(movieTitle) {
+            console.log('Searching suggestion:', movieTitle);
+            document.getElementById('movieInput').value = movieTitle;
+            getRecommendations();
+        }
+
+        function showError(message) {
+            const resultsDiv = document.getElementById('results');
+            if (message) {
+                resultsDiv.innerHTML = `<div class="error">${message}</div>`;
+            }
+        }
+
+        function showLoading(show) {
+            const loading = document.getElementById('loading');
+            loading.style.display = show ? 'block' : 'none';
+        }
+
+        // Test API connection on page load
+        window.addEventListener('load', async function() {
+            try {
+                const response = await fetch(`${API_URL}/`);
+                const data = await response.json();
+                console.log('API connection test successful:', data);
+            } catch (error) {
+                console.error('API connection test failed:', error);
+                showError('⚠️ Warning: Cannot connect to the recommendation service. Make sure the Python API is running on port 5001.');
+            }
+        });
+
+        // Enable Enter key for search
+        document.getElementById('movieInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                getRecommendations();
+            }
+        });
+    </script>
+</body>
+</html>

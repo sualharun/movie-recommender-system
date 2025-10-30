@@ -1,0 +1,19 @@
+# Large files - exclude from git
+data-science/model.pkl
+data-science/movies.csv
+data-science/venv/
+*.csv
+*.pkl
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+
+# Java
+target/
+.idea/
+*.iml
+
+# OS
+.DS_Store
